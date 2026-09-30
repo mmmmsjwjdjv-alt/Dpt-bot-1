@@ -12,17 +12,31 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Download official DPT Shell v2.21.0
-RUN mkdir -p /opt/dpt \
+RUN mkdir -p /opt/dpt-package \
     && curl -fL \
        "https://github.com/luoyesiqiu/dpt-shell/releases/download/v2.21.0/dpt-shell-v2.21.0.zip" \
        -o /tmp/dpt.zip \
-    && unzip -q /tmp/dpt.zip -d /opt/dpt \
-    && DPT_JAR="$(find /opt/dpt -type f -name 'dpt.jar' | head -n 1)" \
+    && unzip -q /tmp/dpt.zip -d /opt/dpt-package \
+    \
+    # Find and install dpt.jar
+    && DPT_JAR="$(find /opt/dpt-package -type f -name 'dpt.jar' | head -n 1)" \
     && test -n "$DPT_JAR" \
-    && echo "DPT JAR: $DPT_JAR" \
-    && echo "DPT FILES:" \
-    && find /opt/dpt -maxdepth 4 -type f | head -100 \
-    && rm -f /tmp/dpt.zip
+    && cp "$DPT_JAR" /opt/dpt.jar \
+    \
+    # Find and install required shell-files directory
+    && SHELL_DIR="$(find /opt/dpt-package -type d -name 'shell-files' | head -n 1)" \
+    && test -n "$SHELL_DIR" \
+    && rm -rf /opt/shell-files \
+    && cp -a "$SHELL_DIR" /opt/shell-files \
+    \
+    # Verify installation
+    && test -f /opt/dpt.jar \
+    && test -d /opt/shell-files \
+    && echo "DPT JAR installed successfully" \
+    && echo "shell-files installed successfully" \
+    \
+    # Cleanup
+    && rm -rf /opt/dpt-package /tmp/dpt.zip
 
 COPY requirements.txt /app/requirements.txt
 
@@ -30,6 +44,6 @@ RUN python3 -m pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app
 
-RUN mkdir -p /app/data /tmp/maxo_dpt_jobs
+RUN mkdir -p /app/data /tmp/maxo_jobs
 
 CMD ["python3", "main.py"]
