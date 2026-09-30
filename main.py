@@ -6,7 +6,13 @@ import tempfile
 import time
 from pathlib import Path
 
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram import (
+    Update,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
@@ -16,8 +22,11 @@ from telegram.ext import (
     filters,
     CallbackQueryHandler,
 )
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
+
+# =========================================================
+# CONFIG
+# =========================================================
 
 TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 ADMIN = int(os.environ.get("ADMIN_ID", "0") or 0)
@@ -25,60 +34,87 @@ ADMIN = int(os.environ.get("ADMIN_ID", "0") or 0)
 MAX_IN = 50 * 1024 * 1024
 MAX_OUT = 50 * 1024 * 1024
 
-# حداکثر زمان واقعی اجرای DPT
+# 6 hours
 TIMEOUT = 6 * 60 * 60
 
-# مسیر صحیحی که Dockerfile می‌سازد
+# Official DPT location inside Docker
 DPT_JAR = "/opt/dpt.jar"
+SHELL_FILES = "/opt/shell-files"
 
 DB = Path("/tmp/maxo.db")
 ROOT = Path("/tmp/maxo_jobs")
 
 ROOT.mkdir(parents=True, exist_ok=True)
 
+# Only one DPT job at a time
 SEM = asyncio.Semaphore(1)
+
 enabled = True
+
+# Users who pressed upload
 upload_users = set()
 
 
-def db():
-    c = sqlite3.connect(DB)
+# =========================================================
+# DATABASE
+# =========================================================
 
-    c.execute("""
+def db():
+    conn = sqlite3.connect(DB)
+
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
             first TEXT,
             username TEXT,
             seen INTEGER
         )
-    """)
+        """
+    )
 
-    c.commit()
-    return c
+    conn.commit()
+    return conn
 
 
-def add_user(u):
-    c = db()
+def add_user(user):
+    if not user:
+        return
 
-    c.execute("""
-        INSERT INTO users(id, first, username, seen)
+    conn = db()
+
+    conn.execute(
+        """
+        INSERT INTO users(
+            id,
+            first,
+            username,
+            seen
+        )
         VALUES (?, ?, ?, ?)
+
         ON CONFLICT(id) DO UPDATE SET
             first=excluded.first,
             username=excluded.username,
             seen=excluded.seen
-    """, (
-        u.id,
-        u.first_name or "",
-        u.username or "",
-        int(time.time())
-    ))
+        """,
+        (
+            user.id,
+            user.first_name or "",
+            user.username or "",
+            int(time.time()),
+        ),
+    )
 
-    c.commit()
-    c.close()
+    conn.commit()
+    conn.close()
 
 
-def kb(admin=False):
+# =========================================================
+# KEYBOARDS
+# =========================================================
+
+def main_keyboard(is_admin=False):
     rows = [
         [
             KeyboardButton(
@@ -88,13 +124,15 @@ def kb(admin=False):
         ]
     ]
 
-    if admin:
-        rows.append([
-            KeyboardButton(
-                "🔴 مدیریت",
-                style="danger"
-            )
-        ])
+    if is_admin:
+        rows.append(
+            [
+                KeyboardButton(
+                    "🔴 مدیریت",
+                    style="danger"
+                )
+            ]
+        )
 
     return ReplyKeyboardMarkup(
         rows,
@@ -103,296 +141,238 @@ def kb(admin=False):
     )
 
 
-def admin_kb():
-    return InlineKeyboardMarkup([
+def admin_keyboard():
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(
-                "🔴 روشن / خاموش",
-                callback_data="toggle"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔴 کاربران",
-                callback_data="users"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔴 آمار",
-                callback_data="stats"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔴 پیام همگانی",
-                callback_data="broadcast"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔴 بستن",
-                callback_data="close"
-            )
+            [
+                InlineKeyboardButton(
+                    "🔴 روشن / خاموش",
+                    callback_data="toggle"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔴 کاربران",
+                    callback_data="users"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔴 آمار",
+                    callback_data="stats"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔴 پیام همگانی",
+                    callback_data="broadcast"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔴 بستن",
+                    callback_data="close"
+                )
+            ],
         ]
-    ])
-
-
-def outname():
-    return "✧ 𝐂𝐑𝐄𝐀𝐓𝐄 𝐁𝐘 𝐌𝐀𝐗𝐎 ✧.apk"
-
-
-def find_apk(directory):
-    candidates = []
-
-    directory = Path(directory)
-
-    if not directory.exists():
-        return None
-
-    for p in directory.rglob("*.apk"):
-        try:
-            if not p.is_file():
-                continue
-
-            size = p.stat().st_size
-
-            if size <= 0:
-                continue
-
-            if size > MAX_OUT:
-                continue
-
-            candidates.append(p)
-
-        except Exception:
-            pass
-
-    if not candidates:
-        return None
-
-    return max(
-        candidates,
-        key=lambda x: x.stat().st_mtime
     )
 
 
-def valid_apk(path):
-    if not path:
-        return False
+# =========================================================
+# OUTPUT
+# =========================================================
 
-    path = Path(path)
-
-    try:
-        if not path.is_file():
-            return False
-
-        if path.stat().st_size <= 0:
-            return False
-
-        if path.stat().st_size > MAX_OUT:
-            return False
-
-        import zipfile
-
-        if not zipfile.is_zipfile(path):
-            return False
-
-        with zipfile.ZipFile(path) as z:
-            names = set(z.namelist())
-
-            if "AndroidManifest.xml" in names:
-                return True
-
-            for name in names:
-                if name.endswith("/AndroidManifest.xml"):
-                    return True
-
-        return False
-
-    except Exception:
-        return False
+def output_name():
+    return "✧ 𝐂𝐑𝐄𝐀𝐓𝐄 𝐁𝐘 𝐌𝐀𝐗𝐎 ✧.apk"
 
 
-async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    add_user(update.effective_user)
+# =========================================================
+# FIND APK
+# =========================================================
+
+def find_apk(directory):
+    directory = Path(directory)
+
+    files = [
+        p
+        for p in directory.rglob("*.apk")
+        if p.is_file() and p.stat().st_size > 0
+    ]
+
+    if not files:
+        return None
+
+    return max(
+        files,
+        key=lambda p: p.stat().st_mtime
+    )
+
+
+# =========================================================
+# /START
+# =========================================================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    add_user(user)
+
+    text = (
+        "╭────────────────────╮\n"
+        "        <b>MAXO DPT</b>\n"
+        "╰────────────────────╯\n\n"
+        "<b>محافظت حرفه‌ای APK با DPT Shell</b>\n\n"
+        "فقط فایل <b>APK</b> را ارسال کنید.\n"
+        "ZIP و 7Z پشتیبانی نمی‌شوند.\n\n"
+        "برای شروع، روی دکمه <b>آپلود فایل</b> بزنید\n"
+        "یا یک APK را ریپلای کرده و <code>/dpt</code> را ارسال کنید."
+    )
 
     await update.message.reply_text(
-        """
-╭────────────────────╮
-        <b>MAXO DPT</b>
-╰────────────────────╯
-
-<b>محافظت حرفه‌ای APK با DPT Shell</b>
-
-فقط فایل <b>APK</b> را ارسال کنید.
-ZIP و 7Z پشتیبانی نمی‌شوند.
-
-برای شروع، روی دکمه <b>آپلود فایل</b> بزنید
-یا یک APK را ریپلای کرده و <code>/dpt</code> را ارسال کنید.
-""",
+        text,
         parse_mode=ParseMode.HTML,
-        reply_markup=kb(
-            update.effective_user.id == ADMIN
+        reply_markup=main_keyboard(
+            user.id == ADMIN
         )
     )
 
 
-async def admin(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN:
+# =========================================================
+# ADMIN
+# =========================================================
+
+async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    if user.id != ADMIN:
         return
 
     await update.message.reply_text(
         "<b>MAXO DPT — مدیریت</b>\n\n"
-        "وضعیت سرویس را کنترل کنید.",
+        "وضعیت سرویس را کنترل کنید:",
         parse_mode=ParseMode.HTML,
-        reply_markup=admin_kb()
+        reply_markup=admin_keyboard()
     )
 
 
-async def callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+# =========================================================
+# ADMIN CALLBACK
+# =========================================================
+
+async def callback(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
     global enabled
 
-    q = update.callback_query
+    query = update.callback_query
 
-    await q.answer()
+    await query.answer()
 
-    if q.from_user.id != ADMIN:
+    if query.from_user.id != ADMIN:
         return
 
-    if q.data == "toggle":
+    if query.data == "toggle":
 
         enabled = not enabled
 
-        await q.edit_message_text(
+        status = "فعال" if enabled else "خاموش"
+
+        await query.edit_message_text(
             "<b>MAXO DPT</b>\n\n"
-            f"وضعیت: <b>{'فعال' if enabled else 'خاموش'}</b>",
+            f"وضعیت: <b>{status}</b>",
             parse_mode=ParseMode.HTML,
-            reply_markup=admin_kb()
+            reply_markup=admin_keyboard()
         )
 
-    elif q.data == "users":
+    elif query.data == "users":
 
-        c = db()
+        conn = db()
 
-        rows = c.execute("""
-            SELECT id, first, username
-            FROM users
-            ORDER BY seen DESC
-            LIMIT 100
-        """).fetchall()
-
-        total = c.execute(
+        count = conn.execute(
             "SELECT COUNT(*) FROM users"
         ).fetchone()[0]
 
-        c.close()
+        conn.close()
 
-        lines = [
-            f"<b>تعداد کاربران: {total}</b>",
-            ""
-        ]
-
-        for i, row in enumerate(rows, 1):
-
-            uid = row[0]
-            first = row[1] or "بدون نام"
-            username = (
-                "@" + row[2]
-                if row[2]
-                else "بدون یوزرنیم"
-            )
-
-            lines.append(
-                f"{i}. <code>{uid}</code> — "
-                f"{first} — {username}"
-            )
-
-        result = "\n".join(lines)
-
-        if len(result) > 3900:
-            result = result[:3800] + "\n\n<i>۱۰۰ کاربر اخیر</i>"
-
-        await q.edit_message_text(
-            result,
+        await query.edit_message_text(
+            f"<b>کاربران ثبت‌شده:</b> {count}",
             parse_mode=ParseMode.HTML,
-            reply_markup=admin_kb()
+            reply_markup=admin_keyboard()
         )
 
-    elif q.data == "stats":
+    elif query.data == "stats":
 
-        c = db()
+        status = "فعال" if enabled else "خاموش"
 
-        users = c.execute(
-            "SELECT COUNT(*) FROM users"
-        ).fetchone()[0]
-
-        c.close()
-
-        await q.edit_message_text(
-            "<b>MAXO DPT STATS</b>\n\n"
-            f"کاربران: <b>{users}</b>\n"
-            f"وضعیت: <b>{'فعال' if enabled else 'خاموش'}</b>\n"
-            "حداکثر ورودی: <b>50 MB</b>\n"
-            "حداکثر خروجی: <b>50 MB</b>\n"
-            "پردازش همزمان: <b>1</b>",
+        await query.edit_message_text(
+            "<b>MAXO DPT</b>\n\n"
+            f"<b>وضعیت:</b> {status}\n"
+            "<b>حداکثر ورودی:</b> 50 MB\n"
+            "<b>حداکثر خروجی:</b> 50 MB\n"
+            "<b>پردازش همزمان:</b> 1",
             parse_mode=ParseMode.HTML,
-            reply_markup=admin_kb()
+            reply_markup=admin_keyboard()
         )
 
-    elif q.data == "broadcast":
+    elif query.data == "broadcast":
 
-        ctx.user_data["broadcast"] = True
+        context.user_data["broadcast"] = True
 
-        await q.edit_message_text(
+        await query.edit_message_text(
             "<b>پیام همگانی</b>\n\n"
             "متن پیام را ارسال کنید.\n"
-            "برای لغو <code>/cancel</code> را بزنید.",
+            "برای لغو: /cancel",
             parse_mode=ParseMode.HTML
         )
 
-    elif q.data == "close":
+    elif query.data == "close":
 
-        await q.delete_message()
+        await query.delete_message()
 
 
-async def text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+# =========================================================
+# TEXT
+# =========================================================
 
-    u = update.effective_user
+async def text_message(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    user = update.effective_user
 
-    add_user(u)
+    add_user(user)
 
-    t = update.message.text or ""
+    text = update.message.text or ""
 
+    # Broadcast
     if (
-        u.id == ADMIN
-        and ctx.user_data.get("broadcast")
+        user.id == ADMIN
+        and context.user_data.pop("broadcast", False)
     ):
 
-        ctx.user_data.pop("broadcast", None)
-
-        c = db()
+        conn = db()
 
         ids = [
-            x[0]
-            for x in c.execute(
+            row[0]
+            for row in conn.execute(
                 "SELECT id FROM users"
-            ).fetchall()
+            )
         ]
 
-        c.close()
+        conn.close()
 
-        ok = 0
+        success = 0
 
         for uid in ids:
 
             try:
-                await ctx.bot.send_message(
+                await context.bot.send_message(
                     chat_id=uid,
-                    text=t
+                    text=text
                 )
 
-                ok += 1
+                success += 1
 
             except Exception:
                 pass
@@ -400,59 +380,67 @@ async def text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(0.04)
 
         await update.message.reply_text(
-            f"<b>پیام ارسال شد:</b> {ok}",
+            f"<b>پیام ارسال شد:</b> {success}",
             parse_mode=ParseMode.HTML,
-            reply_markup=kb(True)
+            reply_markup=main_keyboard(True)
         )
 
         return
 
-    if t == "🔴 آپلود فایل":
+    # Upload button
+    if text == "🔴 آپلود فایل":
 
-        upload_users.add(u.id)
+        upload_users.add(user.id)
 
         await update.message.reply_text(
             "<b>فایل APK را ارسال کنید.</b>\n\n"
-            "حداکثر حجم: <b>50 MB</b>\n"
+            "فقط APK قابل پردازش است.\n"
             "ZIP و 7Z پشتیبانی نمی‌شوند.",
             parse_mode=ParseMode.HTML,
-            reply_markup=kb(
-                u.id == ADMIN
+            reply_markup=main_keyboard(
+                user.id == ADMIN
             )
         )
 
         return
 
+    # Admin button
     if (
-        t == "🔴 مدیریت"
-        and u.id == ADMIN
+        text == "🔴 مدیریت"
+        and user.id == ADMIN
     ):
 
-        await admin(update, ctx)
+        await admin(update, context)
 
 
-async def dpt(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+# =========================================================
+# /DPT
+# =========================================================
 
-    u = update.effective_user
+async def dpt(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+    user = update.effective_user
 
-    add_user(u)
+    add_user(user)
 
-    if u.id != ADMIN:
+    if user.id != ADMIN:
         return
 
-    r = update.message.reply_to_message
+    replied = update.message.reply_to_message
 
     if (
-        not r
-        or not r.document
+        not replied
+        or not replied.document
         or not (
-            r.document.file_name or ""
+            replied.document.file_name or ""
         ).lower().endswith(".apk")
     ):
 
         await update.message.reply_text(
             "روی یک فایل <b>APK</b> ریپلای کنید "
-            "و سپس /dpt را بزنید.",
+            "و <code>/dpt</code> را بزنید.",
             parse_mode=ParseMode.HTML
         )
 
@@ -460,60 +448,69 @@ async def dpt(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     await process(
         update,
-        ctx,
-        r.document.file_id,
-        r.document.file_name
+        context,
+        replied.document.file_id,
+        replied.document.file_name
     )
 
 
+# =========================================================
+# DOCUMENT
+# =========================================================
+
 async def document(
     update: Update,
-    ctx: ContextTypes.DEFAULT_TYPE
+    context: ContextTypes.DEFAULT_TYPE
 ):
+    user = update.effective_user
 
-    u = update.effective_user
+    add_user(user)
 
-    add_user(u)
+    document = update.message.document
 
-    doc = update.message.document
+    name = document.file_name or "app.apk"
 
-    name = doc.file_name or "app.apk"
-
+    # Only APK
     if not name.lower().endswith(".apk"):
 
         await update.message.reply_text(
-            "فقط فایل <b>APK</b> قبول می‌شود.",
+            "فقط فایل <b>APK</b> قبول می‌شود.\n\n"
+            "ZIP و 7Z پشتیبانی نمی‌شوند.",
             parse_mode=ParseMode.HTML,
-            reply_markup=kb(
-                u.id == ADMIN
+            reply_markup=main_keyboard(
+                user.id == ADMIN
             )
         )
 
         return
 
+    # Normal users need upload button first
     if (
-        u.id != ADMIN
-        and u.id not in upload_users
+        user.id != ADMIN
+        and user.id not in upload_users
     ):
         return
 
-    upload_users.discard(u.id)
+    upload_users.discard(user.id)
 
     await process(
         update,
-        ctx,
-        doc.file_id,
+        context,
+        document.file_id,
         name
     )
 
 
-async def process(
-    update,
-    ctx,
-    file_id,
-    name
-):
+# =========================================================
+# PROCESS
+# =========================================================
 
+async def process(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    file_id,
+    original_name
+):
     global enabled
 
     if not enabled:
@@ -524,9 +521,53 @@ async def process(
 
         return
 
+    # Check DPT installation
+    if not os.path.isfile(DPT_JAR):
+
+        await update.effective_message.reply_text(
+            "خطای سرور: فایل DPT پیدا نشد."
+        )
+
+        if ADMIN:
+
+            try:
+                await context.bot.send_message(
+                    ADMIN,
+                    "<b>MAXO DPT ERROR</b>\n\n"
+                    "dpt.jar پیدا نشد.",
+                    parse_mode=ParseMode.HTML
+                )
+
+            except Exception:
+                pass
+
+        return
+
+    # Check shell-files
+    if not os.path.isdir(SHELL_FILES):
+
+        await update.effective_message.reply_text(
+            "خطای سرور: پوشه shell-files پیدا نشد."
+        )
+
+        if ADMIN:
+
+            try:
+                await context.bot.send_message(
+                    ADMIN,
+                    "<b>MAXO DPT ERROR</b>\n\n"
+                    "/opt/shell-files پیدا نشد.",
+                    parse_mode=ParseMode.HTML
+                )
+
+            except Exception:
+                pass
+
+        return
+
     msg = await update.effective_message.reply_text(
-        "<b>MAXO DPT</b>\n\n"
-        "در حال دریافت APK...",
+        "⏳ <b>MAXO DPT</b>\n\n"
+        "در حال دریافت و آماده‌سازی APK...",
         parse_mode=ParseMode.HTML
     )
 
@@ -540,50 +581,49 @@ async def process(
     inp = job / "input.apk"
     out = job / "out"
 
-    out.mkdir()
+    out.mkdir(parents=True, exist_ok=True)
 
     try:
 
-        # دانلود APK
-        f = await ctx.bot.get_file(file_id)
+        # =================================================
+        # DOWNLOAD
+        # =================================================
 
-        await f.download_to_drive(
-            custom_path=str(inp)
+        telegram_file = await context.bot.get_file(
+            file_id
+        )
+
+        await telegram_file.download_to_drive(
+            inp
         )
 
         if not inp.exists():
+
             raise RuntimeError(
                 "دانلود APK انجام نشد."
             )
 
         input_size = inp.stat().st_size
 
-        if input_size <= 0:
+        if input_size > MAX_IN:
+
             raise RuntimeError(
-                "فایل APK خالی است."
+                "حجم فایل بیشتر از 50MB است."
             )
 
-        if input_size > MAX_IN:
-            raise RuntimeError(
-                "حجم فایل بیشتر از 50 MB است."
-            )
+        # =================================================
+        # DPT
+        # =================================================
 
         await msg.edit_text(
-            "<b>MAXO DPT</b>\n\n"
-            "APK دریافت شد.\n"
-            "در حال اجرای DPT Shell...\n\n"
-            "<i>لطفاً تا پایان پردازش صبر کنید.</i>",
+            "⚙️ <b>MAXO DPT</b>\n\n"
+            "در حال اجرای DPT Shell...\n"
+            "لطفاً تا پایان پردازش صبر کنید.",
             parse_mode=ParseMode.HTML
         )
 
         async with SEM:
 
-            if not Path(DPT_JAR).is_file():
-                raise RuntimeError(
-                    f"DPT JAR پیدا نشد: {DPT_JAR}"
-                )
-
-            # اجرای واقعی DPT
             process = await asyncio.create_subprocess_exec(
                 "java",
                 "-jar",
@@ -592,9 +632,11 @@ async def process(
                 str(inp),
                 "-o",
                 str(out),
+
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
-                start_new_session=True
+
+                cwd="/opt"
             )
 
             try:
@@ -607,16 +649,9 @@ async def process(
             except asyncio.TimeoutError:
 
                 try:
-                    os.killpg(
-                        process.pid,
-                        9
-                    )
+                    process.kill()
                 except Exception:
-
-                    try:
-                        process.kill()
-                    except Exception:
-                        pass
+                    pass
 
                 try:
                     await process.wait()
@@ -624,67 +659,75 @@ async def process(
                     pass
 
                 raise RuntimeError(
-                    "اجرای DPT بیشتر از 6 ساعت طول کشید."
+                    "پردازش DPT بیش از زمان مجاز "
+                    "طول کشید."
                 )
 
-            log = (
-                output.decode(
+        # =================================================
+        # LOG
+        # =================================================
+
+        log = ""
+
+        if output:
+
+            try:
+                log = output.decode(
                     "utf-8",
                     errors="replace"
                 )
-                if output
-                else ""
+            except Exception:
+                log = str(output)
+
+        # =================================================
+        # FIND OUTPUT
+        # =================================================
+
+        apk = find_apk(out)
+
+        if not apk:
+
+            error_log = log[-3000:]
+
+            raise RuntimeError(
+                "DPT خروجی APK تولید نکرد.\n\n"
+                f"Exit code: {process.returncode}\n\n"
+                f"{error_log}"
             )
 
-            apk = find_apk(out)
+        # =================================================
+        # OUTPUT SIZE
+        # =================================================
 
-            # مهم:
-            # اگر DPT خروجی معتبر ساخته باشد،
-            # صرفاً non-zero بودن return code باعث
-            # حذف نتیجه نمی‌شود.
-            if not apk:
+        output_size = apk.stat().st_size
 
-                details = log[-2500:]
+        if output_size > MAX_OUT:
 
-                if process.returncode != 0:
+            raise RuntimeError(
+                "حجم خروجی بیشتر از 50MB است."
+            )
 
-                    raise RuntimeError(
-                        "DPT با خطا متوقف شد.\n\n"
-                        + details
-                    )
+        if output_size <= 0:
 
-                raise RuntimeError(
-                    "DPT اجرا شد اما خروجی APK پیدا نشد.\n\n"
-                    + details
-                )
+            raise RuntimeError(
+                "فایل خروجی APK خالی است."
+            )
 
-            if not valid_apk(apk):
-
-                raise RuntimeError(
-                    "فایل خروجی APK معتبر نیست."
-                )
-
-            if (
-                apk.stat().st_size
-                > MAX_OUT
-            ):
-
-                raise RuntimeError(
-                    "حجم خروجی بیشتر از 50 MB است."
-                )
+        # =================================================
+        # SEND
+        # =================================================
 
         await msg.edit_text(
-            "<b>MAXO DPT</b>\n\n"
-            "محافظت با موفقیت انجام شد.\n"
+            "✅ <b>پردازش با موفقیت انجام شد.</b>\n\n"
             "در حال ارسال فایل...",
             parse_mode=ParseMode.HTML
         )
 
-        with apk.open("rb") as fh:
+        with apk.open("rb") as file:
 
             await update.effective_message.reply_document(
-                document=fh,
-                filename=outname(),
+                document=file,
+                filename=output_name(),
                 caption="CREATE BY MAXO\n@Pv_MAXO"
             )
 
@@ -693,32 +736,36 @@ async def process(
         except Exception:
             pass
 
-    except Exception as e:
+    except Exception as error:
 
-        error_text = str(e)
+        error_text = str(error)
 
-        if len(error_text) > 3000:
-            error_text = error_text[-3000:]
+        if not error_text:
+            error_text = "خطای نامشخص"
 
         await msg.edit_text(
-            "<b>MAXO DPT</b>\n\n"
-            "پردازش ناموفق بود.\n\n"
-            f"<code>{error_text}</code>",
+            "❌ <b>پردازش ناموفق بود.</b>\n\n"
+            "<code>"
+            + error_text[:3500]
+            + "</code>",
             parse_mode=ParseMode.HTML
         )
 
+        # Admin log
         if ADMIN:
 
             try:
 
-                await ctx.bot.send_message(
-                    chat_id=ADMIN,
-                    text=(
-                        "⚠️ <b>MAXO DPT ERROR</b>\n\n"
-                        f"User: <code>{update.effective_user.id}</code>\n"
-                        f"File: <code>{name}</code>\n\n"
-                        f"<code>{error_text}</code>"
-                    ),
+                admin_log = (
+                    "⚠️ <b>MAXO DPT ERROR</b>\n\n"
+                    f"<b>User:</b> {update.effective_user.id}\n"
+                    f"<b>File:</b> {original_name}\n\n"
+                    f"<code>{error_text[:3500]}</code>"
+                )
+
+                await context.bot.send_message(
+                    ADMIN,
+                    admin_log,
                     parse_mode=ParseMode.HTML
                 )
 
@@ -727,40 +774,67 @@ async def process(
 
     finally:
 
-        # تمام فایل‌های این Job حذف می‌شوند
-        shutil.rmtree(
-            job,
-            ignore_errors=True
-        )
+        # Always delete job files
+        try:
+            shutil.rmtree(
+                job,
+                ignore_errors=True
+            )
+        except Exception:
+            pass
 
+
+# =========================================================
+# CANCEL
+# =========================================================
 
 async def cancel(
     update: Update,
-    ctx: ContextTypes.DEFAULT_TYPE
+    context: ContextTypes.DEFAULT_TYPE
 ):
-
-    ctx.user_data.pop(
+    context.user_data.pop(
         "broadcast",
         None
     )
 
     await update.message.reply_text(
         "لغو شد.",
-        reply_markup=kb(
+        reply_markup=main_keyboard(
             update.effective_user.id == ADMIN
         )
     )
 
 
+# =========================================================
+# MAIN
+# =========================================================
+
 def main():
 
-    if not TOKEN or not ADMIN:
+    if not TOKEN:
 
         raise SystemExit(
-            "BOT_TOKEN و ADMIN_ID را در Railway Variables تنظیم کنید."
+            "BOT_TOKEN در Railway Variables تنظیم نشده است."
         )
 
+    if not ADMIN:
+
+        raise SystemExit(
+            "ADMIN_ID در Railway Variables تنظیم نشده است."
+        )
+
+    # Initialize database
     db().close()
+
+    # Verify DPT files during startup
+    print("========================================")
+    print("MAXO DPT")
+    print("========================================")
+    print(f"DPT JAR: {DPT_JAR}")
+    print(f"DPT JAR EXISTS: {os.path.isfile(DPT_JAR)}")
+    print(f"SHELL FILES: {SHELL_FILES}")
+    print(f"SHELL FILES EXISTS: {os.path.isdir(SHELL_FILES)}")
+    print("========================================")
 
     app = (
         Application
@@ -769,6 +843,7 @@ def main():
         .build()
     )
 
+    # Commands
     app.add_handler(
         CommandHandler(
             "start",
@@ -797,12 +872,14 @@ def main():
         )
     )
 
+    # Inline callbacks
     app.add_handler(
         CallbackQueryHandler(
             callback
         )
     )
 
+    # APK / documents
     app.add_handler(
         MessageHandler(
             filters.Document.ALL,
@@ -810,15 +887,15 @@ def main():
         )
     )
 
+    # Text
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
-            text
+            text_message
         )
     )
 
-    print("MAXO DPT BOT STARTED")
-
+    # Start bot
     app.run_polling(
         drop_pending_updates=True
     )
