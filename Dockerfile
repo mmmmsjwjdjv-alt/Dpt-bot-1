@@ -19,12 +19,14 @@ RUN mkdir -p /opt/dpt \
     && unzip -q /tmp/dpt.zip -d /opt/dpt \
     && DPT_JAR="$(find /opt/dpt -type f -name 'dpt.jar' | head -n 1)" \
     && test -n "$DPT_JAR" \
-    && cp "$DPT_JAR" /opt/dpt.jar \
-    && rm -rf /tmp/dpt.zip
+    && echo "DPT JAR: $DPT_JAR" \
+    && echo "DPT FILES:" \
+    && find /opt/dpt -maxdepth 4 -type f | head -100 \
+    && rm -f /tmp/dpt.zip
 
 COPY requirements.txt /app/requirements.txt
 
-RUN python3 -m pip install --no-cache-dir -r requirements.txt
+RUN python3 -m pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app
 
