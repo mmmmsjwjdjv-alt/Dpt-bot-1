@@ -14,13 +14,17 @@ os.makedirs(JOBS,exist_ok=True)
 STICKER_START=''; STICKER_PROCESS=''; STICKER_SUCCESS=''; STICKER_ERROR=''
 
 L={
-'fa':dict(upload='🔵 𝐔𝐏𝐋𝐎𝐀𝐃 𝐀𝐏𝐊',language='🔵 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄',admin='🔵 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋',ready='فایل APK خود را ارسال کنید.',only='فقط فایل APK قابل قبول است.',big='حداکثر حجم APK برابر 20MB است.',blocked='دسترسی شما مسدود شده است.',off='پردازش DPT در حال حاضر غیرفعال است.',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nدر حال پردازش APK...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nپردازش با موفقیت انجام شد.',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nپردازش ناموفق بود.',users='🔵 𝐔𝐒𝐄𝐑𝐒',stats='🔵 𝐒𝐓𝐀𝐓𝐒',broadcast='🔵 𝐁𝐑𝐎𝐀𝐃𝐂𝐀𝐒𝐓',enable='🔵 𝐄𝐍𝐀𝐁𝐋𝐄',disable='🔵 𝐃𝐈𝐒𝐀𝐁𝐋𝐄',close='🔵 𝐂𝐋𝐎𝐒𝐄',cancel='🔵 𝐂𝐀𝐍𝐂𝐄𝐋',back='🔵 𝐁𝐀𝐂𝐊',block='🔵 𝐁𝐋𝐎𝐂𝐊',unblock='🔵 𝐔𝐍𝐁𝐋𝐎𝐂𝐊'),
-'en':dict(upload='🔵 𝐔𝐏𝐋𝐎𝐀𝐃 𝐀𝐏𝐊',language='🔵 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄',admin='🔵 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋',ready='Send your APK file.',only='Only APK files are accepted.',big='Maximum APK size is 20MB.',blocked='Your access is blocked.',off='DPT processing is currently disabled.',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nProcessing APK...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nProcessing completed successfully.',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nProcessing failed.',users='🔵 𝐔𝐒𝐄𝐑𝐒',stats='🔵 𝐒𝐓𝐀𝐓𝐒',broadcast='🔵 𝐁𝐑𝐎𝐀𝐃𝐂𝐀𝐒𝐓',enable='🔵 𝐄𝐍𝐀𝐁𝐋𝐄',disable='🔵 𝐃𝐈𝐒𝐀𝐁𝐋𝐄',close='🔵 𝐂𝐋𝐎𝐒𝐄',cancel='🔵 𝐂𝐀𝐍𝐂𝐄𝐋',back='🔵 𝐁𝐀𝐂𝐊',block='🔵 𝐁𝐋𝐎𝐂𝐊',unblock='🔵 𝐔𝐍𝐁𝐋𝐎𝐂𝐊'),
-'zh':dict(upload='🔵 𝐔𝐏𝐋𝐎𝐀𝐃 𝐀𝐏𝐊',language='🔵 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄',admin='🔵 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋',ready='请发送 APK 文件。',only='只接受 APK 文件。',big='APK 最大为 20MB。',blocked='您的访问已被封锁。',off='DPT 处理目前已关闭。',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\n正在处理 APK...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\n处理成功。',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\n处理失败。',users='🔵 𝐔𝐒𝐄𝐑𝐒',stats='🔵 𝐒𝐓𝐀𝐓𝐒',broadcast='🔵 𝐁𝐑𝐎𝐀𝐃𝐂𝐀𝐒𝐓',enable='🔵 𝐄𝐍𝐀𝐁𝐋𝐄',disable='🔵 𝐃𝐈𝐒𝐀𝐁𝐋𝐄',close='🔵 𝐂𝐋𝐎𝐒𝐄',cancel='🔵 𝐂𝐀𝐍𝐂𝐄𝐋',back='🔵 𝐁𝐀𝐂𝐊',block='🔵 𝐁𝐋𝐎𝐂𝐊',unblock='🔵 𝐔𝐍𝐁𝐋𝐎𝐂𝐊'),
-'hi':dict(upload='🔵 𝐔𝐏𝐋𝐎𝐀𝐃 𝐀𝐏𝐊',language='🔵 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄',admin='🔵 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋',ready='अपनी APK फ़ाइल भेजें।',only='केवल APK फ़ाइल स्वीकार है।',big='APK अधिकतम 20MB हो सकती है।',blocked='आपकी पहुंच ब्लॉक है।',off='DPT प्रोसेसिंग अभी बंद है।',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nAPK प्रोसेस हो रही है...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nप्रोसेसिंग सफल रही।',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nप्रोसेसिंग विफल हुई।',users='🔵 𝐔𝐒𝐄𝐑𝐒',stats='🔵 𝐒𝐓𝐀𝐓𝐒',broadcast='🔵 𝐁𝐑𝐎𝐀𝐃𝐂𝐀𝐒𝐓',enable='🔵 𝐄𝐍𝐀𝐁𝐋𝐄',disable='🔵 𝐃𝐈𝐒𝐀𝐁𝐋𝐄',close='🔵 𝐂𝐋𝐎𝐒𝐄',cancel='🔵 𝐂𝐀𝐍𝐂𝐄𝐋',back='🔵 𝐁𝐀𝐂𝐊',block='🔵 𝐁𝐋𝐎𝐂𝐊',unblock='🔵 𝐔𝐍𝐁𝐋𝐎𝐂𝐊'),
-'ar':dict(upload='🔵 𝐔𝐏𝐋𝐎𝐀𝐃 𝐀𝐏𝐊',language='🔵 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄',admin='🔵 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋',ready='أرسل ملف APK.',only='يسمح بملفات APK فقط.',big='الحد الأقصى لحجم APK هو 20MB.',blocked='تم حظر وصولك.',off='معالجة DPT متوقفة حالياً.',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nجارٍ معالجة APK...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nاكتملت المعالجة بنجاح.',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nفشلت المعالجة.',users='🔵 𝐔𝐒𝐄𝐑𝐒',stats='🔵 𝐒𝐓𝐀𝐓𝐒',broadcast='🔵 𝐁𝐑𝐎𝐀𝐃𝐂𝐀𝐒𝐓',enable='🔵 𝐄𝐍𝐀𝐁𝐋𝐄',disable='🔵 𝐃𝐈𝐒𝐀𝐁𝐋𝐄',close='🔵 𝐂𝐋𝐎𝐒𝐄',cancel='🔵 𝐂𝐀𝐍𝐂𝐄𝐋',back='🔵 𝐁𝐀𝐂𝐊',block='🔵 𝐁𝐋𝐎𝐂𝐊',unblock='🔵 𝐔𝐍𝐁𝐋𝐎𝐂𝐊')}
+'fa':dict(upload='آپلود APK',language='زبان',admin='پنل ادمین',ready='فایل APK خود را ارسال کنید.',only='فقط فایل APK قابل قبول است.',big='حداکثر حجم APK برابر 20MB است.',blocked='دسترسی شما مسدود شده است.',off='پردازش DPT در حال حاضر غیرفعال است.',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nدر حال پردازش APK...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nپردازش با موفقیت انجام شد.',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nپردازش ناموفق بود.',users='کاربران',stats='آمار',broadcast='ارسال همگانی',enable='فعال‌سازی',disable='غیرفعال‌سازی',close='بستن',cancel='لغو',back='بازگشت',block='مسدود کردن',unblock='رفع مسدودی'),
+'en':dict(upload='𝐔𝐏𝐋𝐎𝐀𝐃 𝐀𝐏𝐊',language='𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄',admin='𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋',ready='Send your APK file.',only='Only APK files are accepted.',big='Maximum APK size is 20MB.',blocked='Your access is blocked.',off='DPT processing is currently disabled.',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nProcessing APK...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nProcessing completed successfully.',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nProcessing failed.',users='𝐔𝐒𝐄𝐑𝐒',stats='𝐒𝐓𝐀𝐓𝐒',broadcast='𝐁𝐑𝐎𝐀𝐃𝐂𝐀𝐒𝐓',enable='𝐄𝐍𝐀𝐁𝐋𝐄',disable='𝐃𝐈𝐒𝐀𝐁𝐋𝐄',close='𝐂𝐋𝐎𝐒𝐄',cancel='𝐂𝐀𝐍𝐂𝐄𝐋',back='𝐁𝐀𝐂𝐊',block='𝐁𝐋𝐎𝐂𝐊',unblock='𝐔𝐍𝐁𝐋𝐎𝐂𝐊'),
+'zh':dict(upload='上传 APK',language='语言',admin='管理面板',ready='请发送 APK 文件。',only='只接受 APK 文件。',big='APK 最大为 20MB。',blocked='您的访问已被封锁。',off='DPT 处理目前已关闭。',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\n正在处理 APK...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\n处理成功。',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\n处理失败。',users='用户',stats='统计',broadcast='群发消息',enable='启用',disable='禁用',close='关闭',cancel='取消',back='返回',block='封锁',unblock='解除封锁'),
+'hi':dict(upload='APK अपलोड करें',language='भाषा',admin='एडमिन पैनल',ready='अपनी APK फ़ाइल भेजें।',only='केवल APK फ़ाइल स्वीकार है।',big='APK अधिकतम 20MB हो सकती है।',blocked='आपकी पहुंच ब्लॉक है।',off='DPT प्रोसेसिंग अभी बंद है।',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nAPK प्रोसेस हो रही है...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nप्रोसेसिंग सफल रही।',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nप्रोसेसिंग विफल हुई।',users='यूज़र्स',stats='आँकड़े',broadcast='ब्रॉडकास्ट',enable='सक्रिय करें',disable='निष्क्रिय करें',close='बंद करें',cancel='रद्द करें',back='वापस',block='ब्लॉक करें',unblock='अनब्लॉक करें'),
+'ar':dict(upload='رفع APK',language='اللغة',admin='لوحة الإدارة',ready='أرسل ملف APK.',only='يسمح بملفات APK فقط.',big='الحد الأقصى لحجم APK هو 20MB.',blocked='تم حظر وصولك.',off='معالجة DPT متوقفة حالياً.',processing='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nجارٍ معالجة APK...',success='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nاكتملت المعالجة بنجاح.',failed='✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦\n\nفشلت المعالجة.',users='المستخدمون',stats='الإحصائيات',broadcast='بث جماعي',enable='تفعيل',disable='تعطيل',close='إغلاق',cancel='إلغاء',back='رجوع',block='حظر',unblock='إلغاء الحظر')}
 
 LANG_NAMES={'فارسی':'fa','English':'en','中文':'zh','हिन्दी':'hi','العربية':'ar'}
+
+def B(t):
+    try: return KeyboardButton(t,style='primary')
+    except TypeError: return KeyboardButton(t,api_kwargs={'style':'primary'})
 
 def con():
     c=sqlite3.connect(DB); c.row_factory=sqlite3.Row; return c
@@ -53,17 +57,17 @@ def stats(uid,ok):
     c=con(); c.execute('UPDATE users SET total_jobs=total_jobs+1 WHERE id=?',(uid,)); c.execute('UPDATE users SET successful_jobs=successful_jobs+1 WHERE id=?',(uid,)) if ok else c.execute('UPDATE users SET failed_jobs=failed_jobs+1 WHERE id=?',(uid,)); c.commit(); c.close()
 
 def main_kb(uid):
-    rows=[[KeyboardButton(T(uid,'upload')),KeyboardButton(T(uid,'language'))]]
-    if uid==ADMIN_ID: rows.append([KeyboardButton(T(uid,'admin'))])
+    rows=[[B(T(uid,'upload')),B(T(uid,'language'))]]
+    if uid==ADMIN_ID: rows.append([B(T(uid,'admin'))])
     return ReplyKeyboardMarkup(rows,resize_keyboard=True,is_persistent=True)
 
 def admin_kb(uid):
     toggle=T(uid,'disable') if enabled() else T(uid,'enable')
-    return ReplyKeyboardMarkup([[KeyboardButton(T(uid,'users')),KeyboardButton(T(uid,'stats'))],[KeyboardButton(T(uid,'broadcast'))],[KeyboardButton(toggle),KeyboardButton(T(uid,'close'))]],resize_keyboard=True,is_persistent=True)
+    return ReplyKeyboardMarkup([[B(T(uid,'users')),B(T(uid,'stats'))],[B(T(uid,'broadcast'))],[B(toggle),B(T(uid,'close'))]],resize_keyboard=True,is_persistent=True)
 
-def lang_kb(): return ReplyKeyboardMarkup([[KeyboardButton('فارسی'),KeyboardButton('English')],[KeyboardButton('中文'),KeyboardButton('हिन्दी')],[KeyboardButton('العربية')]],resize_keyboard=True,is_persistent=True)
+def lang_kb(): return ReplyKeyboardMarkup([[B('فارسی'),B('English')],[B('中文'),B('हिन्दी')],[B('العربية')]],resize_keyboard=True,is_persistent=True)
 
-def manage_kb(uid,is_blocked): return ReplyKeyboardMarkup([[KeyboardButton(T(uid,'unblock' if is_blocked else 'block'))],[KeyboardButton(T(uid,'back'))]],resize_keyboard=True)
+def manage_kb(uid,is_blocked): return ReplyKeyboardMarkup([[B(T(uid,'unblock' if is_blocked else 'block'))],[B(T(uid,'back'))]],resize_keyboard=True)
 
 async def start(update,ctx):
     ensure(update.effective_user); ctx.user_data.clear(); uid=update.effective_user.id; lg=lang(uid)
@@ -152,7 +156,7 @@ async def text_handler(update,ctx):
             await update.message.reply_text('\n'.join(lines)[:4000],parse_mode=ParseMode.HTML,reply_markup=admin_kb(uid)); return
         if s==T(uid,'stats'):
             c=con(); a=c.execute('SELECT COUNT(*) FROM users').fetchone()[0]; b=c.execute('SELECT COUNT(*) FROM users WHERE blocked=1').fetchone()[0]; j=c.execute('SELECT COALESCE(SUM(total_jobs),0) FROM users').fetchone()[0]; ok=c.execute('SELECT COALESCE(SUM(successful_jobs),0) FROM users').fetchone()[0]; fail=c.execute('SELECT COALESCE(SUM(failed_jobs),0) FROM users').fetchone()[0]; c.close(); await update.message.reply_text(f'<b>✦ 𝐒𝐓𝐀𝐓𝐒 ✦</b>\n\nUsers: <b>{a}</b>\nBlocked: <b>{b}</b>\nJobs: <b>{j}</b>\nSuccess: <b>{ok}</b>\nFailed: <b>{fail}</b>',parse_mode=ParseMode.HTML,reply_markup=admin_kb(uid)); return
-        if s==T(uid,'broadcast'): ctx.user_data['broadcast']=True; await update.message.reply_text('Send the broadcast message.',reply_markup=ReplyKeyboardMarkup([[KeyboardButton(T(uid,'cancel'))]],resize_keyboard=True)); return
+        if s==T(uid,'broadcast'): ctx.user_data['broadcast']=True; await update.message.reply_text('Send the broadcast message.',reply_markup=ReplyKeyboardMarkup([[B(T(uid,'cancel'))]],resize_keyboard=True)); return
         if s==T(uid,'enable'): set_enabled(True); await update.message.reply_text('DPT ENABLED',reply_markup=admin_kb(uid)); return
         if s==T(uid,'disable'): set_enabled(False); await update.message.reply_text('DPT DISABLED',reply_markup=admin_kb(uid)); return
         if s==T(uid,'close'): await update.message.reply_text('✦ 𝐌𝐀𝐗𝐎 𝐃𝐏𝐓 ✦',reply_markup=main_kb(uid)); return
