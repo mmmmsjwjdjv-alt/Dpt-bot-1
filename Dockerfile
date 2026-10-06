@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -22,16 +22,18 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Android command-line tools
+# Android SDK
 RUN mkdir -p /opt/android-sdk/cmdline-tools && \
-    wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+    -O /tmp/cmdline-tools.zip && \
     unzip -q /tmp/cmdline-tools.zip -d /opt/android-sdk/cmdline-tools && \
-    mv /opt/android-sdk/cmdline-tools/cmdline-tools /opt/android-sdk/cmdline-tools/latest && \
-    rm /tmp/cmdline-tools.zip
+    mv /opt/android-sdk/cmdline-tools/cmdline-tools \
+       /opt/android-sdk/cmdline-tools/latest && \
+    rm -f /tmp/cmdline-tools.zip
 
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
-ENV PATH=$PATH:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:/opt/android-sdk/build-tools/35.0.0
+ENV PATH=/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:/opt/android-sdk/build-tools/35.0.0:$PATH
 
 RUN yes | sdkmanager --licenses >/dev/null 2>&1 || true
 
@@ -42,19 +44,21 @@ RUN sdkmanager \
     "ndk;27.2.12479018"
 
 ENV ANDROID_NDK_HOME=/opt/android-sdk/ndk/27.2.12479018
+ENV PATH=$ANDROID_NDK_HOME:$PATH
 
-# Clone Dex2C
-RUN git clone --depth 1 https://github.com/Kirlif/d2c.git /opt/dex2c
+# Dex2C
+RUN git clone --depth 1 \
+    https://github.com/Kirlif/d2c.git \
+    /opt/dex2c
 
 COPY requirements.txt /app/requirements.txt
 
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    pip install -r /app/requirements.txt
+RUN python -m pip install --upgrade \
+    pip \
+    setuptools \
+    wheel
 
-# Install Dex2C dependencies separately
-RUN pip install \
-    "androguard>=3.4.0,<4" \
-    "lxml>=4.9,<6"
+RUN pip install -r /app/requirements.txt
 
 COPY . /app
 
