@@ -1,1 +1,6 @@
-python-telegram-bot==22.8
+pyTelegramBotAPI==4.29.1
+requests>=2.31.0,<3
+aiohttp>=3.9,<4
+psutil>=5.9,<7
+lxml>=4.9,<6
+androguard>=3.4.0,<4
